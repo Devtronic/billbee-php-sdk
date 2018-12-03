@@ -19,8 +19,9 @@ use BillbeeDe\BillbeeAPI\Response as Response;
 use BillbeeDe\BillbeeAPI\Type as Type;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\RequestOptions;
-use MintWare\JOM\Exception\InvalidJsonException;
-use MintWare\JOM\ObjectMapper;
+use MintWare\DMM\Exception\InvalidJsonException;
+use MintWare\DMM\ObjectMapper;
+use MintWare\DMM\Serializer\JsonSerializer;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use function GuzzleHttp\Psr7\parse_response;
@@ -40,7 +41,7 @@ class Client extends AbstractClient
      *
      * @var ObjectMapper
      */
-    protected $jom = null;
+    protected $dmm = null;
 
     /**
      * If true, the requests will be performed using a batch call.
@@ -78,7 +79,7 @@ class Client extends AbstractClient
             ]
         ]);
 
-        $this->jom = new ObjectMapper();
+        $this->dmm = new ObjectMapper(new JsonSerializer());
         $this->setLogger($logger);
     }
 
@@ -192,7 +193,7 @@ class Client extends AbstractClient
     {
         return $this->requestPOST(
             'products/updatestockcode',
-            $this->jom->objectToJson($stockCodeModel),
+            $this->dmm->serialize($stockCodeModel),
             Response\BaseResponse::class
         );
     }
@@ -515,7 +516,7 @@ class Client extends AbstractClient
     {
         return $this->requestPOST(
             'orders?shopId=' . $shopId,
-            $this->jom->objectToJson($order),
+            $this->dmm->serialize($order),
             Response\BaseResponse::class
         );
     }
@@ -560,7 +561,7 @@ class Client extends AbstractClient
     {
         $res = $this->requestPOST(
             'orders/' . $orderId . '/shipment',
-            $this->jom->objectToJson($shipment),
+            $this->dmm->serialize($shipment),
             Response\BaseResponse::class
         );
         return $res === '' || $res === null;
@@ -641,7 +642,7 @@ class Client extends AbstractClient
 
         $res = $this->requestPOST(
             'orders/' . $orderId . '/send-message',
-            $this->jom->objectToJson($message),
+            $this->dmm->serialize($message),
             Response\BaseResponse::class
         );
 
@@ -1006,7 +1007,7 @@ class Client extends AbstractClient
     {
         return $this->requestPOST(
             'webhooks',
-            $this->jom->objectToJson($webHook),
+            $this->dmm->serialize($webHook),
             Model\WebHook::class
         );
     }
@@ -1034,7 +1035,7 @@ class Client extends AbstractClient
 
         $res = $this->requestPUT(
             'webhooks/' . $webHook->id,
-            $this->jom->objectToJson($webHook),
+            $this->dmm->serialize($webHook),
             Model\WebHook::class
         );
 
@@ -1237,8 +1238,8 @@ class Client extends AbstractClient
      */
     public function createCustomer(Model\Customer $customer, Model\CustomerAddress $address)
     {
-        $customerModel = json_decode($this->jom->objectToJson($customer), true);
-        $customerModel['Address'] = json_decode($this->jom->objectToJson($address), true);
+        $customerModel = json_decode($this->dmm->serialize($customer), true);
+        $customerModel['Address'] = json_decode($this->dmm->serialize($address), true);
 
         return $this->requestPOST(
             'customers',
@@ -1270,7 +1271,7 @@ class Client extends AbstractClient
 
         return $this->requestPUT(
             'customers/' . $customer->id,
-            $this->jom->objectToJson($customer),
+            $this->dmm->serialize($customer),
             Response\GetCustomerResponse::class
         );
     }
@@ -1513,7 +1514,7 @@ class Client extends AbstractClient
         if ($responseClass !== null) {
             try {
                 if (trim($contents) != '' && trim($responseClass) != '') {
-                    $data = $this->jom->mapJson($contents, $responseClass);
+                    $data = $this->dmm->map($contents, $responseClass);
                 } elseif (trim($contents) != '') {
                     $data = $contents;
                 }
@@ -1530,7 +1531,7 @@ class Client extends AbstractClient
                 $contents = parse_response($response)->getBody()->getContents();
                 try {
                     if (trim($contents) != '' && trim($responseClass) != '') {
-                        $data[$i] = $this->jom->mapJson($contents, $responseClass);
+                        $data[$i] = $this->dmm->map($contents, $responseClass);
                     } elseif (trim($contents) != '') {
                         $data[$i] = $contents;
                     }
